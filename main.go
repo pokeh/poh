@@ -18,10 +18,6 @@ import (
 var slackBotToken string
 var slackVerificationToken string
 
-type Request struct {
-	Name string `json:"name"`
-}
-
 func main() {
 	lambda.Start(handleRequest)
 }
@@ -33,20 +29,12 @@ func handleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 		return res, err
 	}
 
-	b := []byte(req.Body)
-	var reqStruct Request
-	err := json.Unmarshal(b, &reqStruct)
-	if err != nil {
-		return events.APIGatewayProxyResponse{Body: "Error unmarshalling request", StatusCode: 502}, err
-	}
-
 	slackBotToken = os.Getenv("SLACK_BOT_TOKEN")
 	slackVerificationToken = os.Getenv("SLACK_VERIFICATION_TOKEN")
 
 	api := slack.New(slackBotToken)
 
-	body := string(b)
-	eventsAPIEvent, err := slackevents.ParseEvent(json.RawMessage(body), slackevents.OptionVerifyToken(&slackevents.TokenComparator{VerificationToken: slackVerificationToken}))
+	eventsAPIEvent, err := slackevents.ParseEvent(json.RawMessage(req.Body), slackevents.OptionVerifyToken(&slackevents.TokenComparator{VerificationToken: slackVerificationToken}))
 	if err != nil {
 		log.Println("Error with ParseEvent")
 		return events.APIGatewayProxyResponse{Body: "Parse error", StatusCode: 502}, err
@@ -54,7 +42,7 @@ func handleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 
 	if eventsAPIEvent.Type == slackevents.URLVerification {
 		var r *slackevents.ChallengeResponse
-		err := json.Unmarshal([]byte(body), &r)
+		err := json.Unmarshal([]byte(req.Body), &r)
 		if err != nil {
 			return events.APIGatewayProxyResponse{Body: "Error parsing as slack event", StatusCode: 502}, err
 		}
