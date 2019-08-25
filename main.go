@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -14,9 +13,6 @@ import (
 	"github.com/nlopes/slack"
 	"github.com/nlopes/slack/slackevents"
 )
-
-var slackBotToken string
-var slackVerificationToken string
 
 func main() {
 	lambda.Start(handleRequest)
@@ -29,15 +25,12 @@ func handleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 		return res, err
 	}
 
-	slackBotToken = os.Getenv("SLACK_BOT_TOKEN")
-	slackVerificationToken = os.Getenv("SLACK_VERIFICATION_TOKEN")
+	api := slack.New(os.Getenv("SLACK_BOT_TOKEN"))
 
-	api := slack.New(slackBotToken)
-
-	eventsAPIEvent, err := slackevents.ParseEvent(json.RawMessage(req.Body), slackevents.OptionVerifyToken(&slackevents.TokenComparator{VerificationToken: slackVerificationToken}))
+	token := slackevents.OptionVerifyToken(&slackevents.TokenComparator{VerificationToken: os.Getenv("SLACK_VERIFICATION_TOKEN")})
+	eventsAPIEvent, err := slackevents.ParseEvent(json.RawMessage(req.Body), token)
 	if err != nil {
-		log.Println("Error with ParseEvent")
-		return events.APIGatewayProxyResponse{Body: "Parse error", StatusCode: 502}, err
+		return events.APIGatewayProxyResponse{Body: "Error at ParseEvent", StatusCode: 502}, err
 	}
 
 	if eventsAPIEvent.Type == slackevents.URLVerification {
@@ -55,13 +48,12 @@ func handleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 		innerEvent := eventsAPIEvent.InnerEvent
 		switch ev := innerEvent.Data.(type) {
 		case *slackevents.AppMentionEvent:
-			poh := respond(ev.Text)
+			msg := respond(ev.Text)
 
-			respChannel, respTimestamp, err := api.PostMessage(ev.Channel, slack.MsgOptionText(poh, false))
+			respChannel, respTimestamp, err := api.PostMessage(ev.Channel, slack.MsgOptionText(msg, false))
 			if err != nil {
-				msg := "Error respChannel:" + respChannel + ", respTimestamp:" + respTimestamp
-				log.Println("Error at AppMentionEvent")
-				return events.APIGatewayProxyResponse{Body: msg, StatusCode: 502}, err
+				resp := "Error respChannel:" + respChannel + ", respTimestamp:" + respTimestamp
+				return events.APIGatewayProxyResponse{Body: resp, StatusCode: 502}, err
 			}
 		}
 
@@ -80,25 +72,25 @@ func respond(text string) string {
 		s += " " + r
 	}
 
-	poh := "ぽぽっぽ〜"
+	msg := "ぽぽっぽ〜"
 
 	switch s {
 	case "ping":
-		poh = "ぽん"
+		msg = "ぽん"
 	case "hi", "hello", "hey", "やっほー":
-		poh = "やっほ〜"
+		msg = "やっほ〜"
 	case "かわいい", "かっこいい":
-		poh = "うぴゃぁ :poh:"
+		msg = "うぴゃぁ :poh:"
 	case "君の名は":
 		if time.Now().Unix()%2 == 0 {
-			poh = "ぽー だよ"
+			msg = "ぽー だよ"
 		} else {
-			poh = "ぷー だよ\n:pooh: :poh: 「「入れ替わってるーー！？！？」」"
+			msg = "ぷー だよ\n:pooh: :poh: 「「入れ替わってるーー！？！？」」"
 		}
 	case "しろくろまっちゃ":
-		poh = "あがりコーヒーゆずさくら"
+		msg = "あがりコーヒーゆずさくら"
 	case "天気":
-		poh = "わかったらいいのにね"
+		msg = "わかったらいいのにね"
 	}
 
 	runes := []rune(s)
@@ -113,5 +105,5 @@ func respond(text string) string {
 		}
 	}
 
-	return poh
+	return msg
 }
