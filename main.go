@@ -48,6 +48,7 @@ func handleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 		innerEvent := eventsAPIEvent.InnerEvent
 		switch ev := innerEvent.Data.(type) {
 		case *slackevents.AppMentionEvent:
+			// log.Println(ev.Text)
 			msg := respond(ev.Text)
 
 			respChannel, respTimestamp, err := api.PostMessage(ev.Channel, slack.MsgOptionText(msg, false))
@@ -64,15 +65,17 @@ func handleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 	return events.APIGatewayProxyResponse{Body: "nothing here", StatusCode: 200}, nil
 }
 
-func respond(text string) string {
-	// remove mention <@xxx>
-	t := strings.Split(strings.ToLower(text), " ")
-	s := t[1]
-	for _, r := range t[2:] {
-		s += " " + r
-	}
+func extractMessage(text string) string {
+	// remove mention
+	t := text[strings.Index(text, ">")+1:]
+	// sanitize
+	t = strings.ToLower(strings.TrimSpace(t))
+	return t
+}
 
+func respond(text string) string {
 	msg := "ぽぽっぽ〜"
+	s := extractMessage(text)
 
 	switch s {
 	case "ping":
