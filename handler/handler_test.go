@@ -1,8 +1,6 @@
-package main
+package handler
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestExtractMessage(t *testing.T) {
 	var tests = []struct {
